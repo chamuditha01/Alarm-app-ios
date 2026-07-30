@@ -8,6 +8,7 @@
     "scheme": "lockinapp",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.chamuditha04.lockinapp",
       "icon": "./assets/expo.icon"
     },
     "android": {
