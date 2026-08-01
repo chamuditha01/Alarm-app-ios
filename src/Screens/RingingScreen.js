@@ -13,6 +13,7 @@ import {
 import { isAlarmSoundPlaying, startAlarmSound, stopAlarmSound } from "../lib/audioService";
 import { cancelAllAlarmNotifications } from "../lib/notifeeHandler";
 import { setLockState } from "../lib/lockState";
+import { persistStep } from "../lib/alarms";
 import { colors } from "../theme/colors";
 
 function pad(n) {
@@ -73,6 +74,8 @@ export default function RingingScreen() {
     await stopAlarmSound();
     await cancelAllAlarmNotifications();
     setLockState({ isLocked: true, currentStep: "READING" });
+    // Persist step to UserDefaults on iOS so crash-recovery works
+    persistStep("READING").catch(() => {});
     router.replace("/reading");
   };
 

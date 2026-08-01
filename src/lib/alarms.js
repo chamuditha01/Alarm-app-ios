@@ -1,7 +1,147 @@
 // src/lib/alarms.js
-import { NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 import { startAlarmSound } from "./audioService";
 import { displayAlarmNotification } from "./notifeeHandler";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// iOS: AlarmKit native module (LockInAlarmModule)
+// Android: Notifee (existing path below, unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+const iOSAlarmModule = Platform.OS === "ios" ? NativeModules?.LockInAlarmModule : null;
+
+/**
+ * Request alarm permissions.
+ *
+ * iOS: requests AlarmKit authorization via AlarmManager.shared.requestAuthorization().
+ * Android: requests Notifee notification channel.
+ */
+export async function requestPermissions() {
+  if (iOSAlarmModule) {
+    try {
+      const granted = await iOSAlarmModule.requestPermission();
+      return Boolean(granted);
+    } catch (e) {
+      console.warn("[iOS] AlarmKit permission error:", e);
+      return false;
+    }
+  }
+  // Android path
+  return _requestPermissionsAndroid();
+}
+
+/**
+ * Schedule an alarm.
+ *
+ * iOS: calls AlarmKit AlarmManager.shared.schedule() via LockInAlarmModule.
+ *      Returns { status: "scheduled", alarmId } on success.
+ * Android: creates a Notifee trigger notification.
+ */
+export async function scheduleAlarm(hour, minute, id, label = "LockIn Ritual", onTriggerCallback = null) {
+  if (iOSAlarmModule) {
+    try {
+      const result = await iOSAlarmModule.scheduleAlarm(hour, minute, String(id), label);
+      return result?.alarmId ?? String(id);
+    } catch (e) {
+      console.warn("[iOS] AlarmKit schedule error:", e);
+      return null;
+    }
+  }
+  // Android path continues below
+  return _scheduleAlarmAndroid(hour, minute, id, label, onTriggerCallback);
+}
+
+/**
+ * Cancel a scheduled alarm.
+ *
+ * iOS: cancels via AlarmKit and clears persisted state.
+ * Android: cancels the Notifee trigger notification.
+ */
+export async function cancelAlarm(id) {
+  if (iOSAlarmModule) {
+    try {
+      await iOSAlarmModule.cancelAlarm(String(id));
+    } catch (e) {
+      console.warn("[iOS] AlarmKit cancel error:", e);
+    }
+    return;
+  }
+  // Android path continues below
+  return _cancelAlarmAndroid(id);
+}
+
+/**
+ * Snooze a currently ringing alarm (iOS only public API — Android uses Notifee).
+ * iOS snooze is also handled natively in SnoozeIntent.swift (works even if app is killed).
+ */
+export async function snoozeAlarm(alarmId, minutes = 10) {
+  if (iOSAlarmModule) {
+    try {
+      const result = await iOSAlarmModule.snoozeAlarm(String(alarmId), minutes);
+      return result;
+    } catch (e) {
+      console.warn("[iOS] AlarmKit snooze error:", e);
+    }
+    return;
+  }
+  // Android: no native snooze implementation here; handled by caller
+}
+
+/**
+ * Retrieve persisted alarm state (iOS only).
+ * Returns { alarmId, bookId, label, startTime, pagesRead, quizPassed, currentStep } or null.
+ */
+export async function getPersistedAlarmState() {
+  if (iOSAlarmModule) {
+    try {
+      return await iOSAlarmModule.getAlarmState();
+    } catch (e) {
+      console.warn("[iOS] getAlarmState error:", e);
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Update the currentStep in persisted iOS state.
+ * Call whenever the user transitions between screens (RINGING → READING → QUIZ → UNLOCKED).
+ */
+export async function persistStep(step) {
+  if (iOSAlarmModule) {
+    try {
+      await iOSAlarmModule.updateStep(step);
+    } catch (e) {
+      console.warn("[iOS] updateStep error:", e);
+    }
+  }
+}
+
+/**
+ * Mark quiz as passed in persisted iOS state and clear the alarm.
+ */
+export async function persistQuizPassed() {
+  if (iOSAlarmModule) {
+    try {
+      await iOSAlarmModule.markQuizPassed();
+    } catch (e) {
+      console.warn("[iOS] markQuizPassed error:", e);
+    }
+  }
+}
+
+/**
+ * Clear all persisted iOS alarm state (called after UNLOCKED screen shown).
+ */
+export async function clearPersistedAlarmState() {
+  if (iOSAlarmModule) {
+    try {
+      await iOSAlarmModule.clearAlarmState();
+    } catch (e) {
+      console.warn("[iOS] clearAlarmState error:", e);
+    }
+  }
+}
+
 
 const ALARM_CHANNEL_ID = "lockin_alarms";
 let notifeeModulePromise = null;
@@ -128,7 +268,7 @@ export async function ensureAlarmChannel() {
   }
 }
 
-export async function requestPermissions() {
+async function _requestPermissionsAndroid() {
   const notifeeModule = await getNotifeeModule();
   if (!notifeeModule) return true;
 
@@ -141,7 +281,7 @@ export async function requestPermissions() {
   }
 }
 
-export async function scheduleAlarm(hour, minute, id, label = "LockIn Ritual", onTriggerCallback = null) {
+async function _scheduleAlarmAndroid(hour, minute, id, label = "LockIn Ritual", onTriggerCallback = null) {
   cancelLocalAlarm(id);
   const notifeeModule = await getNotifeeModule();
 
@@ -195,7 +335,7 @@ export async function scheduleAlarm(hour, minute, id, label = "LockIn Ritual", o
   }
 }
 
-export async function cancelAlarm(id) {
+async function _cancelAlarmAndroid(id) {
   cancelLocalAlarm(id);
   const notifeeModule = await getNotifeeModule();
   if (!notifeeModule) return;

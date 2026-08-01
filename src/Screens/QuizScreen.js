@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BackHandler, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { QUIZ } from "../data/content";
 import { setLockState } from "../lib/lockState";
+import { persistStep, persistQuizPassed } from "../lib/alarms";
 import { colors } from "../theme/colors";
 
 export default function QuizScreen() {
@@ -16,6 +17,8 @@ export default function QuizScreen() {
 
   useEffect(() => {
     setLockState({ isLocked: true, currentStep: "QUIZ" });
+    // Persist QUIZ step on iOS for crash recovery
+    persistStep("QUIZ").catch(() => {});
 
     // Block back button during quiz
     const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
@@ -39,6 +42,8 @@ export default function QuizScreen() {
         setPicked(null);
       } else {
         setLockState({ isLocked: false, currentStep: "UNLOCKED", lastQuizScore: newScore });
+        // Persist final state on iOS
+        persistQuizPassed().catch(() => {});
         router.replace({
           pathname: "/unlocked",
           params: { correctCount: String(newScore), total: String(total) },

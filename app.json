@@ -9,7 +9,16 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.chamuditha04.lockinapp",
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "deploymentTarget": "26.0",
+      "infoPlist": {
+        "NSAlarmKitUsageDescription": "LockIn needs alarm access to wake you up at the scheduled time and display the reading task.",
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.chamuditha04.lockinapp"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -56,13 +65,18 @@
               "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m",
               "reactNativeArchitectures": "arm64-v8a,x86_64"
             }
+          },
+          "ios": {
+            "deploymentTarget": "26.0"
           }
         }
       ],
       "expo-font",
       "expo-audio",
       "expo-asset",
-      "./plugins/withLockGuard"
+      "./plugins/withLockGuard",
+      "./plugins/withLockInIOS",
+      ["@bacons/apple-targets", {}]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -5,6 +5,7 @@ import { BackHandler, StyleSheet, Text, TouchableOpacity, View } from "react-nat
 import { stopAlarmSound } from "../lib/audioService";
 import { cancelAllAlarmNotifications } from "../lib/notifeeHandler";
 import { getLockState, incrementStreak, setLockState, subscribeLockState } from "../lib/lockState";
+import { clearPersistedAlarmState } from "../lib/alarms";
 import { colors } from "../theme/colors";
 
 export default function UnlockedScreen() {
@@ -18,6 +19,8 @@ export default function UnlockedScreen() {
   useEffect(() => {
     stopAlarmSound();
     cancelAllAlarmNotifications();
+    // Clear iOS persisted alarm state so a completed session doesn't re-restore
+    clearPersistedAlarmState().catch(() => {});
 
     const unsubscribe = subscribeLockState((state) => {
       setStreakVal(state.streak);
